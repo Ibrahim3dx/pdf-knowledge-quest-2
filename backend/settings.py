@@ -86,3 +86,18 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ✅ Ensure trailing slash works
 APPEND_SLASH = True
 CORS_ALLOW_ALL_ORIGINS = True
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+    },
+}

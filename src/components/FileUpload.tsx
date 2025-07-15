@@ -6,7 +6,6 @@ import { Upload, FileText, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FileUploadProps {
-  /** Receives the documents array returned by backend */
   onFileUpload: (documents: any[]) => void;
 }
 
@@ -16,8 +15,9 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  const onDrop = useCallback((accepted: File[]) => {
-    setSelectedFiles((prev) => [...prev, ...accepted]);
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    console.log("Files dropped:", acceptedFiles);
+    setSelectedFiles(acceptedFiles); // ⬅️ Use this to avoid duplicate state merging issues
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -26,11 +26,10 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     multiple: true,
   });
 
-  const removeFile = (idx: number) =>
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
+  const removeFile = (index: number) =>
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
 
   const formatSize = (bytes: number) => {
-    if (!bytes) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -38,33 +37,34 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
   };
 
   const handleUpload = async () => {
-    if (selectedFiles.length === 0) return;
-    setUploading(true);
+    if (selectedFiles.length === 0) {
+      alert("Please select a file");
+      return;
+    }
 
     const form = new FormData();
     selectedFiles.forEach((file) => {
-      form.append("files", file); // 👈 use files[] for compatibility
+      form.append("files", file); // ✅ KEY MUST BE "files" (no brackets)
     });
 
-    console.log("Uploading:", form.getAll("files[]")); // Debug log
+    console.log("Uploading:", form.getAll("files")); // ✅ Confirm files
 
+    setUploading(true);
     try {
       const res = await fetch(`${API_BASE}/upload/`, {
         method: "POST",
         body: form,
       });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Upload failed: ${res.status} ${errorText}`);
-      }
-
       const data = await res.json();
-      onFileUpload(data.documents); // pass docs to parent
+
+      if (!res.ok) throw data;
+
+      onFileUpload(data.documents);
       setSelectedFiles([]);
-    } catch (err) {
-      console.error(err);
-      alert("Upload failed. See console for details.");
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      alert("Upload failed");
     } finally {
       setUploading(false);
     }
@@ -85,61 +85,51 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
           >
             <input {...getInputProps()} />
             <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            {isDragActive ? (
-              <p className="text-lg">Drop the PDF files here…</p>
-            ) : (
-              <>
-                <p className="text-lg mb-2">
-                  Drag & drop PDF files here, or click to select
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Support for multiple PDF files
-                </p>
-              </>
-            )}
+            <p className="text-lg mb-2">
+              Drag & drop PDF files here, or click to select
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Only PDF files are supported
+            </p>
           </div>
         </CardContent>
       </Card>
 
       {selectedFiles.length > 0 && (
         <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">
+          <CardContent className="p-6 space-y-4">
+            <h3 className="text-lg font-semibold">
               Selected Files ({selectedFiles.length})
             </h3>
-
-            <div className="space-y-2 mb-4">
-              {selectedFiles.map((file, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    <FileText className="h-5 w-5 text-red-500" />
-                    <div>
-                      <p className="font-medium">{file.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatSize(file.size)}
-                      </p>
-                    </div>
+            {selectedFiles.map((file, index) => (
+              <div
+                key={index}
+                className="flex justify-between items-center bg-muted rounded p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <FileText className="text-red-500 w-5 h-5" />
+                  <div>
+                    <p className="font-medium">{file.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatSize(file.size)}
+                    </p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => removeFile(i)}>
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
-              ))}
-            </div>
-
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeFile(index)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
             <Button
-              onClick={handleUpload}
               className="w-full"
+              onClick={handleUpload}
               disabled={uploading}
             >
-              {uploading
-                ? "Uploading…"
-                : `Upload ${selectedFiles.length} File${
-                    selectedFiles.length > 1 ? "s" : ""
-                  }`}
+              {uploading ? "Uploading..." : "Upload"}
             </Button>
           </CardContent>
         </Card>
