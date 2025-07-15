@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { DocumentList } from '@/components/DocumentList';
@@ -31,49 +30,43 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleFileUpload = async (files: File[]) => {
-    const newDocuments: Document[] = files.map(file => ({
+    const formData = new FormData();
+    files.forEach(file => formData.append("files", file));
+
+    const newDocs: Document[] = files.map(file => ({
       id: crypto.randomUUID(),
       name: file.name,
       size: file.size,
       uploadDate: new Date(),
       status: 'uploading',
-      progress: 0
+      progress: 0,
     }));
+    setDocuments(prev => [...prev, ...newDocs]);
 
-    setDocuments(prev => [...prev, ...newDocuments]);
+    try {
+      const res = await fetch("http://localhost:8000/api/upload/", {
+        method: "POST",
+        body: formData,
+      });
 
-    // Simulate upload process
-    for (const doc of newDocuments) {
-      try {
-        // Update progress
-        for (let progress = 0; progress <= 100; progress += 10) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          setDocuments(prev => prev.map(d => 
-            d.id === doc.id ? { ...d, progress } : d
-          ));
-        }
-
-        // Mark as processing
-        setDocuments(prev => prev.map(d => 
-          d.id === doc.id ? { ...d, status: 'processing', progress: 100 } : d
-        ));
-
-        // Simulate processing time
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // Mark as ready
-        setDocuments(prev => prev.map(d => 
-          d.id === doc.id ? { ...d, status: 'ready' } : d
-        ));
-      } catch (error) {
-        setDocuments(prev => prev.map(d => 
-          d.id === doc.id ? { 
-            ...d, 
-            status: 'error', 
-            errorMessage: 'Failed to process document' 
-          } : d
-        ));
+      const data = await res.json();
+      if (data.success) {
+        const updatedDocs = data.documents.map((doc: any) => ({
+          id: doc.id,
+          name: doc.name,
+          size: doc.size,
+          uploadDate: new Date(doc.uploaded_at || Date.now()),
+          status: doc.status,
+        }));
+        setDocuments(prev => [
+          ...prev.filter(d => !newDocs.map(n => n.name).includes(d.name)),
+          ...updatedDocs,
+        ]);
+      } else {
+        console.error("Upload failed", data);
       }
+    } catch (err) {
+      console.error("Error uploading files", err);
     }
   };
 
@@ -84,35 +77,41 @@ const Index = () => {
   const handleSendMessage = async (content: string) => {
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
-      type: 'user',
+      type: "user",
       content,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-
     setChatMessages(prev => [...prev, userMessage]);
     setIsProcessing(true);
 
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await fetch("http://localhost:8000/api/ask/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          question: content,
+          document_ids: documents.filter(d => d.status === 'ready').map(d => d.id),
+        }),
+      });
 
+      const data = await response.json();
       const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(),
-        type: 'assistant',
-        content: "I'm a demo response. Connect this to your backend API to get real answers based on your uploaded documents.",
+        type: "assistant",
+        content: data.answer || "No answer received.",
         timestamp: new Date(),
-        sources: documents.filter(d => d.status === 'ready').slice(0, 2).map(d => d.name)
+        sources: data.sources || [],
       };
-
       setChatMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch (err) {
       const errorMessage: ChatMessage = {
         id: crypto.randomUUID(),
-        type: 'assistant',
-        content: "Sorry, I encountered an error while processing your question. Please try again.",
-        timestamp: new Date()
+        type: "assistant",
+        content: "Sorry, there was an error connecting to the backend.",
+        timestamp: new Date(),
       };
-
       setChatMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsProcessing(false);
