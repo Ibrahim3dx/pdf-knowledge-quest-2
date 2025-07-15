@@ -9,15 +9,16 @@ interface FileUploadProps {
   onFileUpload: (documents: any[]) => void;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
 export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    console.log("Files dropped:", acceptedFiles);
-    setSelectedFiles(acceptedFiles); // ⬅️ Use this to avoid duplicate state merging issues
+  const onDrop = useCallback((accepted: File[]) => {
+    console.log("Files dropped:", accepted);
+    setSelectedFiles(accepted); // replace list instead of merging duplicates
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -26,10 +27,11 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     multiple: true,
   });
 
-  const removeFile = (index: number) =>
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  const removeFile = (idx: number) =>
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
 
   const formatSize = (bytes: number) => {
+    if (!bytes) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -37,19 +39,14 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
   };
 
   const handleUpload = async () => {
-    if (selectedFiles.length === 0) {
-      alert("Please select a file");
-      return;
-    }
+    if (uploading || selectedFiles.length === 0) return;
 
     const form = new FormData();
-    selectedFiles.forEach((file) => {
-      form.append("files", file); // ✅ KEY MUST BE "files" (no brackets)
-    });
+    selectedFiles.forEach((file) => form.append("files", file)); // key is "files"
 
-    console.log("Uploading:", form.getAll("files")); // ✅ Confirm files
-
+    console.log("Uploading:", form.getAll("files"));
     setUploading(true);
+
     try {
       const res = await fetch(`${API_BASE}/upload/`, {
         method: "POST",
@@ -59,12 +56,11 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
       const data = await res.json();
 
       if (!res.ok) throw data;
-
       onFileUpload(data.documents);
       setSelectedFiles([]);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Upload error:", err);
-      alert("Upload failed");
+      alert("Upload failed – see console for details.");
     } finally {
       setUploading(false);
     }
@@ -101,9 +97,10 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
             <h3 className="text-lg font-semibold">
               Selected Files ({selectedFiles.length})
             </h3>
-            {selectedFiles.map((file, index) => (
+
+            {selectedFiles.map((file, i) => (
               <div
-                key={index}
+                key={i}
                 className="flex justify-between items-center bg-muted rounded p-3"
               >
                 <div className="flex items-center gap-3">
@@ -118,18 +115,19 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => removeFile(index)}
+                  onClick={() => removeFile(i)}
                 >
                   <X className="w-4 h-4" />
                 </Button>
               </div>
             ))}
+
             <Button
               className="w-full"
               onClick={handleUpload}
               disabled={uploading}
             >
-              {uploading ? "Uploading..." : "Upload"}
+              {uploading ? "Uploading…" : "Upload"}
             </Button>
           </CardContent>
         </Card>
