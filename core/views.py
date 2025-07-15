@@ -7,6 +7,7 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser
 
 from .models import Document
 from .serializers import DocumentSerializer
@@ -18,9 +19,12 @@ from openai import OpenAI
 
 client = OpenAI()  # Uses OPENAI_API_KEY from env
 
+
 class DocumentUploadView(APIView):
+    parser_classes = [MultiPartParser]  # 👈 Ensures file uploads are processed
+
     def post(self, request, *args, **kwargs):
-        files = request.FILES.getlist('files')
+        files = request.FILES.getlist("files")  # 👈 this line
 
         if not files:
             return Response({'error': 'No files provided'}, status=status.HTTP_400_BAD_REQUEST)

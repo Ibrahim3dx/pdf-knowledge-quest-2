@@ -30,11 +30,11 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
 
   const formatSize = (bytes: number) => {
-    if (!bytes) return "0 Bytes";
+    if (!bytes) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
   const handleUpload = async () => {
@@ -42,7 +42,11 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     setUploading(true);
 
     const form = new FormData();
-    selectedFiles.forEach((f) => form.append("files", f));
+    selectedFiles.forEach((file) => {
+      form.append("files", file); // 👈 use files[] for compatibility
+    });
+
+    console.log("Uploading:", form.getAll("files[]")); // Debug log
 
     try {
       const res = await fetch(`${API_BASE}/upload/`, {
@@ -50,13 +54,17 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
         body: form,
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Upload failed: ${res.status} ${errorText}`);
+      }
+
       const data = await res.json();
       onFileUpload(data.documents); // pass docs to parent
       setSelectedFiles([]);
     } catch (err) {
       console.error(err);
-      alert("Upload failed. Check console.");
+      alert("Upload failed. See console for details.");
     } finally {
       setUploading(false);
     }
@@ -97,7 +105,7 @@ export const FileUpload = ({ onFileUpload }: FileUploadProps) => {
         <Card>
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4">
-              Selected Files ({selectedFiles.length})
+              Selected Files ({selectedFiles.length})
             </h3>
 
             <div className="space-y-2 mb-4">
