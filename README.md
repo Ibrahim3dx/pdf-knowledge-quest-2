@@ -1,18 +1,20 @@
-# Welcome to your Lovable project
+# PDF Knowledge Quest
 
-## Project info
+## Purpose
 
-**URL**: https://lovable.dev/projects/de0951eb-266c-4f50-bcb7-1903a99fba9c
+PDF Knowledge Quest is a web application designed to help users extract, search, and interact with knowledge from PDF documents. Upload your PDFs and instantly query their content using AI-powered chat. The app is ideal for students, educators, and professionals who need fast access to information within large documents.
+
+## Technical Features
+
+- **PDF Upload & Processing:** Upload PDF files and extract text using a Django backend.
+- **Vector Search:** Text chunks are embedded and indexed with FAISS for semantic search.
+- **AI Chatbot:** Ask questions about your documents; answers are generated using OpenAI's GPT-3.5 model, based only on your uploaded content.
+- **Modern Frontend:** Built with React, TypeScript, Vite, shadcn-ui, and Tailwind CSS for a fast, responsive UI.
+- **REST API:** Django REST Framework powers the backend API for document management and chat.
+- **Document Management:** List, view, and manage uploaded documents.
+- **Instant Preview:** See results and chat responses in real time.
 
 ## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/de0951eb-266c-4f50-bcb7-1903a99fba9c) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
 
 **Use your preferred IDE**
 
